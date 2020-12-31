@@ -29,7 +29,9 @@ import org.apache.flink.types.Row;
 import java.util.List;
 import java.util.Map;
 
-import static com.dtstack.flinkx.odps.OdpsConfigKeys.*;
+import static com.dtstack.flinkx.odps.OdpsConfigKeys.KEY_ODPS_CONFIG;
+import static com.dtstack.flinkx.odps.OdpsConfigKeys.KEY_PARTITION;
+import static com.dtstack.flinkx.odps.OdpsConfigKeys.KEY_TABLE;
 
 /**
  * The reader plugin of Odps
@@ -57,7 +59,7 @@ public class OdpsReader extends BaseDataReader {
     @Override
     public DataStream<Row> readData() {
         OdpsInputFormatBuilder builder = new OdpsInputFormatBuilder();
-
+        builder.setDataTransferConfig(dataTransferConfig);
         builder.setMetaColumn(metaColumns);
         builder.setOdpsConfig(odpsConfig);
         builder.setTableName(tableName);

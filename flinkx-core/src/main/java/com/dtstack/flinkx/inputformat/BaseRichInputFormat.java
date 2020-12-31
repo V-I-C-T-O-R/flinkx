@@ -18,6 +18,7 @@
 
 package com.dtstack.flinkx.inputformat;
 
+import com.dtstack.flinkx.config.DataTransferConfig;
 import com.dtstack.flinkx.config.LogConfig;
 import com.dtstack.flinkx.config.RestoreConfig;
 import com.dtstack.flinkx.config.TestConfig;
@@ -28,8 +29,8 @@ import com.dtstack.flinkx.metrics.BaseMetric;
 import com.dtstack.flinkx.metrics.CustomPrometheusReporter;
 import com.dtstack.flinkx.reader.ByteRateLimiter;
 import com.dtstack.flinkx.restore.FormatState;
-import org.apache.commons.lang.StringUtils;
 import com.dtstack.flinkx.util.ExceptionUtil;
+import com.dtstack.flinkx.util.GsonUtil;
 import org.apache.flink.api.common.accumulators.LongCounter;
 import org.apache.flink.api.common.io.DefaultInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
@@ -42,8 +43,16 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.dtstack.flinkx.constants.ConfigConstant.KEY_CONFUSED_PASSWORD;
+import static com.dtstack.flinkx.constants.ConfigConstant.KEY_CONTENT;
+import static com.dtstack.flinkx.constants.ConfigConstant.KEY_PARAMETER;
+import static com.dtstack.flinkx.constants.ConfigConstant.KEY_PASSWORD;
+import static com.dtstack.flinkx.constants.ConfigConstant.KEY_READER;
+import static com.dtstack.flinkx.constants.ConfigConstant.KEY_WRITER;
 
 /**
  * FlinkX里面所有自定义inputFormat的抽象基类
@@ -68,6 +77,7 @@ public abstract class BaseRichInputFormat extends org.apache.flink.api.common.io
 
     protected RestoreConfig restoreConfig;
     protected LogConfig logConfig;
+    protected DataTransferConfig dataTransferConfig;
 
     protected FormatState formatState;
 
@@ -104,6 +114,7 @@ public abstract class BaseRichInputFormat extends org.apache.flink.api.common.io
 
     @Override
     public void openInputFormat() throws IOException {
+        showConfig();
         initJobInfo();
         initPrometheusReporter();
 
@@ -158,6 +169,26 @@ public abstract class BaseRichInputFormat extends org.apache.flink.api.common.io
         }
 
         openInternal(inputSplit);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void showConfig(){
+        Map<String, Object> map = dataTransferConfig.getJob().getAll();
+        List<Map<String,Object>> contentList = (List<Map<String,Object>>) map.get(KEY_CONTENT);
+        for(Map<String,Object> contentMap : contentList) {
+            //隐藏密码信息
+            Map<String, Object> readerConfig = (Map<String, Object>)contentMap.get(KEY_READER);
+            Map<String, Object> readerParameter = (Map<String, Object>)readerConfig.get(KEY_PARAMETER);
+            if(readerParameter.containsKey(KEY_PASSWORD)){
+                readerParameter.put(KEY_PASSWORD, KEY_CONFUSED_PASSWORD);
+            }
+            Map<String, Object> writerConfig = (Map<String, Object>)contentMap.get(KEY_WRITER);
+            Map<String, Object> writerParameter = (Map<String, Object>)writerConfig.get(KEY_PARAMETER);
+            if(writerParameter.containsKey(KEY_PASSWORD)){
+                writerParameter.put(KEY_PASSWORD, KEY_CONFUSED_PASSWORD);
+            }
+        }
+        LOG.info("configInfo : \n{}", GsonUtil.GSON.toJson(map));
     }
 
     private void checkIfCreateSplitFailed(InputSplit inputSplit){
@@ -376,16 +407,19 @@ public abstract class BaseRichInputFormat extends org.apache.flink.api.common.io
         return restoreConfig;
     }
 
-    public void setLogConfig(LogConfig logConfig) {
-        this.logConfig = logConfig;
-    }
-
     public void setRestoreConfig(RestoreConfig restoreConfig) {
         this.restoreConfig = restoreConfig;
     }
 
+    public void setLogConfig(LogConfig logConfig) {
+        this.logConfig = logConfig;
+    }
 
     public void setTestConfig(TestConfig testConfig) {
         this.testConfig = testConfig;
+    }
+
+    public void setDataTransferConfig(DataTransferConfig dataTransferConfig){
+        this.dataTransferConfig = dataTransferConfig;
     }
 }

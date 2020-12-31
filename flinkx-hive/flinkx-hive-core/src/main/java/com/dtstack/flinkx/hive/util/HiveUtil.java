@@ -28,7 +28,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import static com.dtstack.flinkx.hive.EStoreType.*;
+import static com.dtstack.flinkx.hive.EStoreType.ORC;
+import static com.dtstack.flinkx.hive.EStoreType.TEXT;
 
 /**
  * @author toutian
@@ -56,22 +57,47 @@ public class HiveUtil {
         /**
          * apache hive 1.x
          */
-        APACHE_1,
+        APACHE_1("apache", "1"),
 
         /**
          * apache hive 2.x
          */
-        APACHE_2,
+        APACHE_2("apache", "2"),
 
         /**
          * cdh hive 1.x
          */
-        CDH_1,
+        CDH_1("cdh", "1"),
 
         /**
          * cdh hive 2.x
          */
-        CDH_2
+        CDH_2("cdh", "2");
+
+        private String name;
+
+        private String version;
+
+        HiveReleaseVersion(String name, String version) {
+            this.name = name;
+            this.version = version;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public void setVersion(String version) {
+            this.version = version;
+        }
     }
 
     public HiveUtil() {
@@ -178,15 +204,14 @@ public class HiveUtil {
 
     public HiveReleaseVersion getHiveVersion(Connection connection){
         HiveReleaseVersion version = HiveReleaseVersion.APACHE_2;
-        try {
-            ResultSet resultSet = connection.createStatement().executeQuery("select version()");
+        try (ResultSet resultSet = connection.createStatement().executeQuery("select version()")) {
             if (resultSet.next()) {
                 String versionMsg = resultSet.getString(1);
-                if (versionMsg.contains("cdh")){
+                if (versionMsg.contains(HiveReleaseVersion.CDH_1.getName())){
                     // 结果示例：2.1.1-cdh6.3.1 re8d55f408b4f9aa2648bc9e34a8f802d53d6aab3
-                    if (versionMsg.startsWith("2")) {
+                    if (versionMsg.startsWith(HiveReleaseVersion.CDH_2.getVersion())) {
                         version = HiveReleaseVersion.CDH_2;
-                    } else if(versionMsg.startsWith("1")){
+                    } else if(versionMsg.startsWith(HiveReleaseVersion.CDH_1.getVersion())){
                         version = HiveReleaseVersion.CDH_1;
                     }
                 } else {
@@ -232,9 +257,20 @@ public class HiveUtil {
         originType = originType.trim();
         int indexOfBrackets = originType.indexOf(LEFT_BRACKETS);
         if (indexOfBrackets > -1) {
-            String type = originType.substring(0, indexOfBrackets);
             String params = originType.substring(indexOfBrackets);
-            return convertType(type) + params;
+            int index = params.indexOf(",");
+            int right = Integer.parseInt(params.substring(index+1, params.length()-1).trim());
+            if(right == 0){
+                int left = Integer.parseInt(params.substring(1, index).trim());
+                if(left <= 4){
+                    return "SMALLINT";
+                }else if(left <= 9){
+                    return "INT";
+                }else if(left <= 18){
+                    return "BIGINT";
+                }
+            }
+            return "DECIMAL" + params;
         } else {
             return convertType(originType);
         }
@@ -258,6 +294,8 @@ public class HiveUtil {
             case "INT8":
                 type = "INT";
                 break;
+            case "NUMERIC":
+            case "NUMBER":
             case "BIGINT":
                 type = "BIGINT";
                 break;
@@ -272,8 +310,6 @@ public class HiveUtil {
             case "BINARY_DOUBLE":
                 type = "DOUBLE";
                 break;
-            case "NUMERIC":
-            case "NUMBER":
             case "DECIMAL":
                 type = "DECIMAL";
                 break;

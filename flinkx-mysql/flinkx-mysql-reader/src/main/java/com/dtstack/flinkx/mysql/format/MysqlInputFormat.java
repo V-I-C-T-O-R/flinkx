@@ -18,20 +18,13 @@
 package com.dtstack.flinkx.mysql.format;
 
 import com.dtstack.flinkx.rdb.inputformat.JdbcInputFormat;
-import com.dtstack.flinkx.rdb.util.DbUtil;
-import com.dtstack.flinkx.reader.MetaColumn;
-import com.dtstack.flinkx.util.ClassUtil;
 import com.dtstack.flinkx.util.DateUtil;
-import com.dtstack.flinkx.util.ExceptionUtil;
-import com.google.gson.Gson;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.types.Row;
 
 import java.io.IOException;
-import java.sql.SQLException;
-import java.util.ArrayList;
 
 import static com.dtstack.flinkx.rdb.util.DbUtil.clobToString;
 
@@ -45,51 +38,11 @@ public class MysqlInputFormat extends JdbcInputFormat {
 
     @Override
     public void openInternal(InputSplit inputSplit) throws IOException {
-        try {
-            LOG.info("inputSplit = {}", inputSplit);
-
-            ClassUtil.forName(driverName, getClass().getClassLoader());
-            initMetric(inputSplit);
-
-            String startLocation = incrementConfig.getStartLocation();
-            if (incrementConfig.isPolling()) {
-                endLocationAccumulator.add(Long.parseLong(startLocation));
-                isTimestamp = "timestamp".equalsIgnoreCase(incrementConfig.getColumnType());
-            } else if ((incrementConfig.isIncrement() && incrementConfig.isUseMaxFunc())) {
-                getMaxValue(inputSplit);
-            }
-
-            if(!canReadData(inputSplit)){
-                LOG.warn("Not read data when the start location are equal to end location");
-                hasNext = false;
-                return;
-            }
-
-            querySql = buildQuerySql(inputSplit);
-            //MySQL流式读取
-            fetchSize = Integer.MIN_VALUE;
-            executeQuery(startLocation);
-            columnCount = resultSet.getMetaData().getColumnCount();
-
-            boolean splitWithRowCol = numPartitions > 1 && StringUtils.isNotEmpty(splitKey) && splitKey.contains("(");
-            if(splitWithRowCol){
-                columnCount = columnCount-1;
-            }
-
-            if (StringUtils.isEmpty(customSql)){
-                descColumnTypeList = DbUtil.analyzeTable(dbUrl, username, password,databaseInterface,table,metaColumns);
-            } else {
-                descColumnTypeList = new ArrayList<>();
-                for (MetaColumn metaColumn : metaColumns) {
-                    descColumnTypeList.add(metaColumn.getName());
-                }
-            }
-
-        } catch (SQLException se) {
-            throw new IllegalArgumentException("open() failed. " + se.getMessage(), se);
+        // 避免result.next阻塞
+        if(incrementConfig.isPolling() && StringUtils.isEmpty(incrementConfig.getStartLocation()) && fetchSize==databaseInterface.getFetchSize()){
+            fetchSize = 1000;
         }
-
-        LOG.info("JdbcInputFormat[{}]open: end", jobName);
+        super.openInternal(inputSplit);
     }
 
     @Override
@@ -122,7 +75,6 @@ public class MysqlInputFormat extends JdbcInputFormat {
             }
             return super.nextRecordInternal(row);
         }catch (Exception e) {
-            LOG.error("error to get next record, row = {}, descColumnTypeList = {}, e = {}", row, new Gson().toJson(descColumnTypeList), ExceptionUtil.getErrorMessage(e));
             throw new IOException("Couldn't read data - " + e.getMessage(), e);
         }
     }

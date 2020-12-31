@@ -43,9 +43,9 @@ public class HdfsReader extends BaseDataReader {
     protected String fileType;
     protected String path;
     protected String fieldDelimiter;
-    private List<MetaColumn> metaColumns;
+    protected List<MetaColumn> metaColumns;
     protected Map<String, Object> hadoopConfig;
-    private String filterRegex;
+    protected String filterRegex;
 
     public HdfsReader(DataTransferConfig config, StreamExecutionEnvironment env) {
         super(config, env);
@@ -70,6 +70,7 @@ public class HdfsReader extends BaseDataReader {
     @Override
     public DataStream<Row> readData() {
         HdfsInputFormatBuilder builder = new HdfsInputFormatBuilder(fileType);
+        builder.setDataTransferConfig(dataTransferConfig);
         builder.setInputPaths(path);
         builder.setMetaColumn(metaColumns);
         builder.setHadoopConfig(hadoopConfig);

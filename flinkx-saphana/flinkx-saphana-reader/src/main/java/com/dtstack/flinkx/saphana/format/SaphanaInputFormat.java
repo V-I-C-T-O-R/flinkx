@@ -89,6 +89,7 @@ public class SaphanaInputFormat extends JdbcInputFormat {
                     descColumnTypeList.add(metaColumn.getName());
                 }
             }
+            checkSize(columnCount, metaColumns);
 
         } catch (SQLException se) {
             throw new IllegalArgumentException("open() failed. " + se.getMessage(), se);

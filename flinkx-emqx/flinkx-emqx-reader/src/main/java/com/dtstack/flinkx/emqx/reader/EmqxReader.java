@@ -8,7 +8,13 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.types.Row;
 
-import static com.dtstack.flinkx.emqx.EmqxConfigKeys.*;
+import static com.dtstack.flinkx.emqx.EmqxConfigKeys.KEY_BROKER;
+import static com.dtstack.flinkx.emqx.EmqxConfigKeys.KEY_CODEC;
+import static com.dtstack.flinkx.emqx.EmqxConfigKeys.KEY_IS_CLEAN_SESSION;
+import static com.dtstack.flinkx.emqx.EmqxConfigKeys.KEY_PASSWORD;
+import static com.dtstack.flinkx.emqx.EmqxConfigKeys.KEY_QOS;
+import static com.dtstack.flinkx.emqx.EmqxConfigKeys.KEY_TOPIC;
+import static com.dtstack.flinkx.emqx.EmqxConfigKeys.KEY_USERNAME;
 
 /**
  * Date: 2020/02/12
@@ -41,6 +47,7 @@ public class EmqxReader extends BaseDataReader {
     @Override
     public DataStream<Row> readData() {
         EmqxInputFormatBuilder builder = new EmqxInputFormatBuilder();
+        builder.setDataTransferConfig(dataTransferConfig);
         builder.setBroker(broker);
         builder.setTopic(topic);
         builder.setUsername(username);

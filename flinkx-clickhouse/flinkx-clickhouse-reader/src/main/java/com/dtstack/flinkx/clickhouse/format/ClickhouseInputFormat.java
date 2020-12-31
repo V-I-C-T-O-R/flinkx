@@ -29,8 +29,8 @@ import org.apache.flink.types.Row;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
+import java.sql.Statement;
 
 import static com.dtstack.flinkx.rdb.util.DbUtil.clobToString;
 
@@ -48,22 +48,7 @@ public class ClickhouseInputFormat extends JdbcInputFormat {
             LOG.info("inputSplit = {}", inputSplit);
             ClassUtil.forName(driverName, getClass().getClassLoader());
             dbConn = ClickhouseUtil.getConnection(dbUrl, username, password);
-            initMetric(inputSplit);
-            String startLocation = incrementConfig.getStartLocation();
-            if (incrementConfig.isPolling()) {
-                endLocationAccumulator.add(Long.parseLong(startLocation));
-                isTimestamp = "timestamp".equalsIgnoreCase(incrementConfig.getColumnType());
-            } else if ((incrementConfig.isIncrement() && incrementConfig.isUseMaxFunc())) {
-                getMaxValue(inputSplit);
-            }
-
-            if(!canReadData(inputSplit)){
-                LOG.warn("Not read data when the start location are equal to end location");
-                hasNext = false;
-                return;
-            }
-
-            Statement statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
+            statement = dbConn.createStatement(resultSetType, resultSetConcurrency);
             statement.setFetchSize(fetchSize);
             statement.setQueryTimeout(queryTimeOut);
             String querySql = buildQuerySql(inputSplit);
@@ -74,7 +59,7 @@ public class ClickhouseInputFormat extends JdbcInputFormat {
             if(splitWithRowCol){
                 columnCount = columnCount-1;
             }
-
+            checkSize(columnCount, metaColumns);
             hasNext = resultSet.next();
 
             if (StringUtils.isEmpty(customSql)){

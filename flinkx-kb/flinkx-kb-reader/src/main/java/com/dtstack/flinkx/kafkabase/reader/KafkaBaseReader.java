@@ -28,7 +28,11 @@ import org.apache.flink.types.Row;
 import java.util.List;
 import java.util.Map;
 
-import static com.dtstack.flinkx.kafkabase.KafkaConfigKeys.*;
+import static com.dtstack.flinkx.kafkabase.KafkaConfigKeys.KEY_BLANK_IGNORE;
+import static com.dtstack.flinkx.kafkabase.KafkaConfigKeys.KEY_CODEC;
+import static com.dtstack.flinkx.kafkabase.KafkaConfigKeys.KEY_CONSUMER_SETTINGS;
+import static com.dtstack.flinkx.kafkabase.KafkaConfigKeys.KEY_GROUP_ID;
+import static com.dtstack.flinkx.kafkabase.KafkaConfigKeys.KEY_TOPIC;
 
 /**
  * Date: 2019/11/21
@@ -60,13 +64,13 @@ public class KafkaBaseReader extends BaseDataReader {
     @Override
     public DataStream<Row> readData() {
         KafkaBaseInputFormat format = getFormat();
+        format.setDataTransferConfig(dataTransferConfig);
         format.setTopic(topic);
         format.setGroupId(groupId);
         format.setCodec(codec);
         format.setBlankIgnore(blankIgnore);
         format.setConsumerSettings(consumerSettings);
         format.setRestoreConfig(restoreConfig);
-        format.setMetaColumns(metaColumns);
         return createInput(format);
     }
 
